@@ -1,0 +1,10 @@
+﻿A, B;
+
+A + A, B;
+B | B;
+B - A;
+A : a;
+B : b, c;
+a + a, b;
+b + a, b, c;
+c + b;

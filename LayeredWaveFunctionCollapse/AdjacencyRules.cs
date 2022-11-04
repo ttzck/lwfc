@@ -17,7 +17,7 @@ public class AdjacencyRules : List<(string firstTile, (int x, int y) dir, string
         // create first layer
         for (int i = 0; i < bitmap.Width; i++)
             for (int j = 0; j < bitmap.Height; j++)
-                layer[i, j] = GetHtmlColor(bitmap, i, j);
+                layer[i, j] = ColorTranslator.ToHtml(bitmap.GetPixel(i, j));
 
         result.InferFromLayer(layer);
 
@@ -92,70 +92,6 @@ public class AdjacencyRules : List<(string firstTile, (int x, int y) dir, string
                     }
                 }
             }
-        }
-    }
-
-    private static string GetHtmlColor(Bitmap bitmap, int i, int j) => ColorTranslator.ToHtml(bitmap.GetPixel(i, j));
-
-    public static AdjacencyRules Parse(string s)
-    {
-        var result = new AdjacencyRules();
-
-        var rules = s.Replace("\n", string.Empty)
-            .Replace("\r", string.Empty)
-            .Replace(" ", string.Empty)
-            .Split(';');
-        foreach (var rule in rules)
-            result.ParseRule(rule);
-
-        return result;
-    }
-
-    private void ParseRule(string rule)
-    {
-        if (rule == string.Empty) return;
-        var r = Regex.Split(rule, @"(\-)|(\|)|(\+)|(\:)");
-        ParseRule(r);
-    }
-
-    private void ParseRule(string[] r)
-    {
-        if (r.Length == 1) ParseStartingTiles(r[0]);
-        else ParseRule(r[0], r[1], r[2].Split(","));
-    }
-
-    private void ParseStartingTiles(string r)
-    {
-        StartingTiles.AddRange(r.Split(","));
-    }
-
-    private void ParseRule(string a, string @operator, string[] bArr)
-    {
-        foreach(var b in bArr) ParseRule(a, @operator, b);
-    }
-
-    private void ParseRule(string a, string @operator, string b)
-    {
-        switch (@operator)
-        {
-            case ":":
-                Add((a, (0, 0), b));
-                break;
-
-            case "-":
-                Add((a, (1, 0), b));
-                Add((b, (-1, 0), a));
-                break;
-
-            case "|":
-                Add((a, (0, -1), b));
-                Add((b, (0, 1), a));
-                break;
-
-            case "+":
-                ParseRule(a, "-", b);
-                ParseRule(a, "|", b);
-                break;
         }
     }
 }

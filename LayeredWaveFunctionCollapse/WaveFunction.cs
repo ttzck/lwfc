@@ -99,32 +99,8 @@ public class WaveFunction<T>
         return state;
     }
 
-    public override string ToString()
-    {
-        var str = $"Min Cardinality (except 1) {GetLowestEntropy()}\n\n";
-
-        ForEachSuperPosition((i, j, superPosition) =>
-        {
-            if (superPosition.Count == 1)
-                str += superPosition[0];
-            else
-                str += superPosition.Count;
-            if (i == Width - 1) str += "\n";
-        });
-
-        return str;
-    }
-
     public void ForEachSuperPosition(Action<int, int, List<T>> action)
-    {
-        for (var j = 0; j < Height; j++)
-        {
-            for (var i = 0; i < Width; i++)
-            {
-                action(i, j, superPositions[i, j]);
-            }
-        }
-    }
+        => superPositions.ForEach(action);
 
     public int GetLowestEntropy()
     {

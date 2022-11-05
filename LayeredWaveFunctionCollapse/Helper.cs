@@ -1,11 +1,13 @@
 ﻿using System.Drawing;
 
-public static class Helper
+namespace LayeredWaveFunctionCollapse
 {
-    public static readonly (int x, int y)[] CardinalDirections = new (int, int)[] { (1, 0), (0, 1), (-1, 0), (0, -1) };
-
-    public static void ForEach<T>(this T[,] array, Action<int, int, T> action)
+    public static class Helper
     {
+        public static readonly (int x, int y)[] CardinalDirections = new (int, int)[] { (1, 0), (0, 1), (-1, 0), (0, -1) };
+
+        public static void ForEach<T>(this T[,] array, Action<int, int, T> action)
+        {
             for (var i = 0; i < array.GetLength(0); i++)
             {
                 for (var j = 0; j < array.GetLength(1); j++)
@@ -13,5 +15,6 @@ public static class Helper
                     action(i, j, array[i, j]);
                 }
             }
+        }
     }
 }

@@ -1,9 +1,0 @@
-﻿R, B, X;
-
-R + R, X;
-B + B, X;
-X + R, B, X;
-
-R : R;
-B : B;
-X : R, B, X;

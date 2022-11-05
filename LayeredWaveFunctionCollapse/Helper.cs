@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
 
 namespace LayeredWaveFunctionCollapse
 {
@@ -6,13 +7,13 @@ namespace LayeredWaveFunctionCollapse
     {
         public static readonly (int x, int y)[] CardinalDirections = new (int, int)[] { (1, 0), (0, 1), (-1, 0), (0, -1) };
 
-        public static void ForEach<T>(this T[,] array, Action<int, int, T> action)
+        public static void ForEach<T>(this T[,] array, Action<int, int> action)
         {
             for (var i = 0; i < array.GetLength(0); i++)
             {
                 for (var j = 0; j < array.GetLength(1); j++)
                 {
-                    action(i, j, array[i, j]);
+                    action(i, j);
                 }
             }
         }

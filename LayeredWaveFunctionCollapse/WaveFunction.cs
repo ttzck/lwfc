@@ -4,40 +4,36 @@ using System;
 
 namespace LayeredWaveFunctionCollapse
 {
-    public class WaveFunction<T>
+    public class WaveFunction
     {
-        private List<T>[,] superPositions;
+        private readonly List<int>[,] superPositions;
 
-        private readonly List<(T tileA, (int x, int y) dir, T tileB)> adjacencyRules;
+        private readonly AdjacencyList adjacencyConstraints;
 
         private readonly Random random;
 
         public int Width { get; private set; }
         public int Height { get; private set; }
 
-        public WaveFunction(int width, int height, IEnumerable<T>[,] startingState, List<(T tileA, (int, int) dir, T tileB)> adjacencyRules, int seed)
+        public WaveFunction(int width, int height, List<int>[,] startingState, AdjacencyList adjacencyConstraints, int seed)
         {
-            this.adjacencyRules = adjacencyRules;
+            this.adjacencyConstraints = adjacencyConstraints;
             random = new Random(seed);
 
             Width = width;
             Height = height;
 
-            superPositions = new List<T>[width, height];
-            ForEachSuperPosition((i, j, _) =>
-            {
-                superPositions[i, j] = new List<T>(startingState[i, j]);
-            });
+            superPositions = new List<int>[width, height];
+            ForEachSuperPosition((i, j) =>
+                superPositions[i, j] = new List<int>(startingState[i, j]));
 
             // HACK: make sure every constraint is met at start
-            ForEachSuperPosition((i, j, _) =>
-            {
-                Propagate(i, j);
-            });
+            ForEachSuperPosition((i, j) =>
+                Propagate(i, j));
         }
 
-        public void Collapse(int x, int y, T tile)
-            => superPositions[x, y] = new List<T> { tile };
+        public void Collapse(int x, int y, int tile)
+            => superPositions[x, y] = new List<int> { tile };
 
         public void Propagate(int originX, int originY)
         {
@@ -55,11 +51,11 @@ namespace LayeredWaveFunctionCollapse
                     if (IsOutOfBounds(adjX, adjY)) continue;
 
                     var numberOfBannedTiles = superPositions[adjX, adjY]
-                        .RemoveAll(adjTile => !adjacencyRules
-                            .Any(rule =>
-                                superPositions[x, y].Contains(rule.tileA) &&
-                                rule.dir == (dirX, dirY) &&
-                                Equals(rule.tileB, adjTile)));
+                        .RemoveAll(adjTile => !adjacencyConstraints
+                            .Any(constraint =>
+                                superPositions[x, y].Contains(constraint.firstTile) &&
+                                constraint.dir == (dirX, dirY) &&
+                                constraint.secondTile == adjTile));
 
                     if (numberOfBannedTiles > 0) stack.Push((adjX, adjY));
                 }
@@ -77,9 +73,9 @@ namespace LayeredWaveFunctionCollapse
 
                 // find all superpositions with the minimal cardinality
                 var candidates = new List<(int x, int y)>();
-                ForEachSuperPosition((i, j, superPosition) =>
+                ForEachSuperPosition((i, j) =>
                 {
-                    if (superPosition.Count == minimalCardinality)
+                    if (superPositions[i, j].Count == minimalCardinality)
                     {
                         candidates.Add((i, j));
                     }
@@ -94,20 +90,20 @@ namespace LayeredWaveFunctionCollapse
             }
         }
 
-        public T[,] ExtractState()
+        public int[,] ExtractState()
         {
-            var state = new T[Width, Height];
-            ForEachSuperPosition((i, j, superPosition) => state[i, j] = superPosition.First());
+            var state = new int[Width, Height];
+            ForEachSuperPosition((i, j) => state[i, j] = superPositions[i, j].First());
             return state;
         }
 
-        public void ForEachSuperPosition(Action<int, int, List<T>> action)
+        public void ForEachSuperPosition(Action<int, int> action)
             => superPositions.ForEach(action);
 
         public int GetLowestEntropy()
         {
             var minCard = int.MaxValue;
-            ForEachSuperPosition((i, j, superPosition) =>
+            ForEachSuperPosition((i, j) =>
             {
                 var card = superPositions[i, j].Count;
                 if (card < minCard && card != 1) minCard = card;

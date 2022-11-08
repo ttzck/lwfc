@@ -57,6 +57,8 @@ namespace LayeredWaveFunctionCollapse
                                 constraint.dir == (dirX, dirY) &&
                                 constraint.secondTile == adjTile));
 
+                    if (superPositions[adjX, adjY].Count is 0) return;
+
                     if (numberOfBannedTiles > 0) stack.Push((adjX, adjY));
                 }
             }
@@ -67,9 +69,9 @@ namespace LayeredWaveFunctionCollapse
         public void Run()
         {
             int minimalCardinality;
-            while ((minimalCardinality = GetLowestEntropy()) != int.MaxValue)
+            while ((minimalCardinality = GetLowestEntropy()) is not int.MaxValue)
             {
-                if (minimalCardinality == 0) return;
+                if (minimalCardinality is 0) return;
 
                 // find all superpositions with the minimal cardinality
                 var candidates = new List<(int x, int y)>();
@@ -90,10 +92,19 @@ namespace LayeredWaveFunctionCollapse
             }
         }
 
+        // tiles with contradiction have ID = -1 and uncollapsed tiles ID = -2
         public int[,] ExtractState()
         {
             var state = new int[Width, Height];
-            ForEachSuperPosition((i, j) => state[i, j] = superPositions[i, j].First());
+            ForEachSuperPosition((i, j) =>
+            {
+                state[i, j] = superPositions[i, j].Count switch
+                {
+                    0 => -1,
+                    1 => superPositions[i, j][0],
+                    _ => -2,
+                };
+            });
             return state;
         }
 

@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System;
 
+// TODO: optimize SubsumptionRules (abstractTile -> List{concreteTiles})
+
 namespace LayeredWaveFunctionCollapse
 {
     public class AdjacencyList : List<(int firstTile, (int x, int y) dir, int secondTile)> { }

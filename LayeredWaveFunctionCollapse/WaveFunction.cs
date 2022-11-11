@@ -44,18 +44,15 @@ namespace LayeredWaveFunctionCollapse
             {
                 (int x, int y) = stack.Pop();
 
-                foreach ((int dirX, int dirY) in Helper.CardinalDirections)
+                foreach ((int dirX, int dirY) in Utils.CardinalDirections)
                 {
                     (int adjX, int adjY) = (x + dirX, y + dirY);
 
                     if (IsOutOfBounds(adjX, adjY)) continue;
 
-                    var numberOfBannedTiles = superPositions[adjX, adjY]
-                        .RemoveAll(adjTile => !adjacencyConstraints
-                            .Any(constraint =>
-                                superPositions[x, y].Contains(constraint.firstTile) &&
-                                constraint.dir == (dirX, dirY) &&
-                                constraint.secondTile == adjTile));
+                    var numberOfBannedTiles = superPositions[adjX, adjY].RemoveAll(adjTile => 
+                            !superPositions[x, y].Any(tile =>
+                                adjacencyConstraints[(tile, (dirX, dirY))].Contains(adjTile)));
 
                     if (superPositions[adjX, adjY].Count is 0) return;
 

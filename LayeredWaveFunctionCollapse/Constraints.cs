@@ -2,103 +2,96 @@
 using System.Collections.Generic;
 using System;
 
-// TODO: optimize SubsumptionRules (abstractTile -> List{concreteTiles})
-
+// TODO: rename 'bucket' to 'chunk'
 namespace LayeredWaveFunctionCollapse
 {
-    public class AdjacencyList : List<(int firstTile, (int x, int y) dir, int secondTile)> { }
-    public class SubsumptionList : List<(int abstractTile, int concreteTile)> { }
+    public class AdjacencyList : Dictionary<(int firstTile, (int x, int y) dir), HashSet<int>> { }
+    public class SubsumptionList : Dictionary<int, HashSet<int>> { }
 
     public class Constraints
     {
-        public List<int> StartingTiles { get; private set; } = new();
+        public HashSet<int> StartingTiles { get; private set; } = new();
         public AdjacencyList AdjacencyConstraints { get; private set; } = new();
         public SubsumptionList SubsumptionConstraints { get; private set; } = new();
+        public List<(HashSet<int> components, int id)> ChunkIDs { get; private set; } = new();
 
         private int unusedID = 0;
 
-        public Constraints(int[,] source, int[] bucketSizes) 
+        public Constraints(int[,] input, int[] bucketSizes) 
         {
+            var source = new Layer(input);
             var bucketsQueue = new Queue<int>(bucketSizes);
-            source.ForEach((i, j) =>
+
+            unusedID = source.GetBiggestID() + 1;
+
+            InferConstraintsRecursively(source, bucketsQueue);
+            InferSubsumptionConstraints();
+        }
+
+        private void InferConstraintsRecursively(Layer source, Queue<int> bucketsQueue)
+        {
+            InferAdjacencyConstraints(source);
+
+            if (!bucketsQueue.TryDequeue(out var bucketSize))
+                foreach (var tile in source.GetUniqueTiles())
+                    StartingTiles.Add(tile);
+            else
+                Utils.ForEachIn2DCartesianProductOf(bucketSize, (xOffset, yOffset) =>
+                {
+                    var nextLayer = CondenseIntoChunks(source, xOffset, yOffset, bucketSize);
+                    InferConstraintsRecursively(nextLayer, new Queue<int>(bucketsQueue));
+                });
+        }
+
+        private Layer CondenseIntoChunks(Layer source, int xOffset, int yOffset, int chunkSize)
+        {
+            // create next Layer
+            var nextWidth = (source.Width - xOffset) / chunkSize;
+            var nextHeight = (source.Height - yOffset) / chunkSize;
+            var chunks = new int[nextWidth, nextHeight];
+            chunks.ForEach((i, j) =>
             {
-                if (source[i, j] >= unusedID)
-                    unusedID = source[i, j] + 1;
+                var tilesInChunk = new HashSet<int>();
+
+                // collect all tiles in one chunk
+                Utils.ForEachIn2DCartesianProductOf(chunkSize, (chunkX, chunkY) =>
+                    tilesInChunk.Add(source[(i * chunkSize) + chunkX + xOffset, (j * chunkSize) + chunkY + yOffset]));
+
+                // set ids in the next layer
+                var matchIndex = ChunkIDs.FindIndex(e => e.components.SetEquals(tilesInChunk));
+                if (matchIndex != -1)
+                {
+                    chunks[i, j] = ChunkIDs[matchIndex].id; 
+                }
+                else
+                {
+                    chunks[i, j] = unusedID;
+                    ChunkIDs.Add((tilesInChunk, unusedID));
+                    unusedID++;
+                }
             });
+            return new Layer(chunks);
+        }
 
-            InferAdjacencyRules(source);
+        private void InferAdjacencyConstraints(Layer source)
+        {
+            var uniqueTiles = source.GetUniqueTiles();
+            foreach (var tile in uniqueTiles)
+                foreach (var dir in Utils.CardinalDirections)
+                    AdjacencyConstraints.TryAdd((tile, dir), new HashSet<int>());
 
-            while (bucketsQueue.TryDequeue(out var bucketSize))
+            source.IDs.ForEach((i, j) =>
             {
-                source = InferSubsumptionRules(source, bucketSize);
-                InferAdjacencyRules(source);
-            }
-
-            source.ForEach((i, j) =>
-            {
-                if (!StartingTiles.Contains(source[i, j]))
-                    StartingTiles.Add(source[i, j]);
+                foreach (var dir in Utils.CardinalDirections)
+                    if (source.IndicesAreInRange(i + dir.x, j + dir.y))
+                        AdjacencyConstraints[(source[i, j], dir)].Add(source[i + dir.x, j + dir.y]);
             });
         }
 
-        private int[,] InferSubsumptionRules(int[,] layer, int bucketSize)
+        public void InferSubsumptionConstraints()
         {
-            int nextWidth = (int)Math.Ceiling((float)layer.GetLength(0) / bucketSize);
-            int nextHeight = (int)Math.Ceiling((float)layer.GetLength(1) / bucketSize);
-            // create buckets for next layer
-            var bucketsLayer = new HashSet<int>[nextWidth, nextHeight];
-            bucketsLayer.ForEach((i, j) =>
-                bucketsLayer[i, j] = new HashSet<int>());
-
-            // populate buckets
-            layer.ForEach((i, j) =>
-                bucketsLayer[i / bucketSize, j / bucketSize].Add(layer[i, j]));
-            
-            // assign IDs to buckets
-            var bucketIDs = new List<(HashSet<int> bucket, int id)>();
-            bucketsLayer.ForEach((i, j) =>
-            {
-                if (!bucketIDs.Any((tuple) => tuple.bucket.SetEquals(bucketsLayer[i, j])))
-                    bucketIDs.Add((bucketsLayer[i, j], unusedID++));
-            });
-
-            // create layer from buckets
-            var nextLayer = new int[bucketsLayer.GetLength(0), bucketsLayer.GetLength(1)];
-            nextLayer.ForEach((i, j) =>
-                nextLayer[i, j] = bucketIDs
-                    .First((tuple) => tuple.bucket.SetEquals(bucketsLayer[i, j]))
-                        .id);
-
-            // infer subsumption rules
-            nextLayer.ForEach((i, j) =>
-            {
-                foreach (var color in bucketsLayer[i, j])
-                {
-                    var tuple = (nextLayer[i, j], color);
-                    if (!SubsumptionConstraints.Contains(tuple))
-                        SubsumptionConstraints.Add(tuple);
-                }
-            });
-            return nextLayer;
-        }
-
-        private void InferAdjacencyRules(int[,] layer)
-        {
-            var width = layer.GetLength(0);
-            var height = layer.GetLength(1);
-            layer.ForEach((i, j) =>
-            {
-                foreach (var dir in Helper.CardinalDirections)
-                {
-                    if (i + dir.x >= 0 && i + dir.x < width
-                        && j + dir.y >= 0 && j + dir.y < height)
-                    {
-                        var tuple = (layer[i, j], dir, layer[i + dir.x, j + dir.y]);
-                        if (!AdjacencyConstraints.Contains(tuple))
-                            AdjacencyConstraints.Add(tuple);
-                    }
-                }
-            });
+            foreach (var (components, id) in ChunkIDs)
+                SubsumptionConstraints.Add(id, components);
         }
     }
 }

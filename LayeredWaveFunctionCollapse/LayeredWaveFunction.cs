@@ -34,7 +34,6 @@ namespace LayeredWaveFunctionCollapse
             wf.Run();
             var state = wf.ExtractState();
             results.Add(state);
-
             
             while (bucketsQueue.TryDequeue(out var bucketSize))
             {
@@ -43,11 +42,16 @@ namespace LayeredWaveFunctionCollapse
                 var nextHeight = wf.Height * bucketSize;
                 var nextState = new List<int>[nextWidth, nextHeight];
 
+                var successful = true;
                 nextState.ForEach((i, j) =>
-                    nextState[i, j] = new List<int>(Constraints.SubsumptionConstraints
-                        .Where(r => r.abstractTile == state[i / bucketSize, j / bucketSize])
-                        .Select(r => r.concreteTile)));
-
+                {
+                    if (Constraints.SubsumptionConstraints
+                        .TryGetValue(state[i / bucketSize, j / bucketSize], out var concreteTiles))
+                        nextState[i, j] = new List<int>(concreteTiles);
+                    else
+                        successful = false;
+                });
+                if (!successful) break;
                 wf = new WaveFunction(nextWidth, nextHeight, nextState, Constraints.AdjacencyConstraints, seed);
 
                 wf.Run();
